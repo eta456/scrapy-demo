@@ -53,4 +53,46 @@ class OfficeworksSpider(scrapy.Spider):
                 # GO INSIDE the tile to check for 'All X'
                 yield response.follow(url, callback=self.parse_sub_category)
 
-   
+    """Phase 2: logic step - Check for 'All _phones' etc."""
+    def parse_sub_category(self, response):
+        # 1. Determine the 'Base' slug from the current URL
+        # e.g. .../technology/mobile-phones/apple-iphones -> "apple-iphones"
+        path_parts = urlparse(response.url).path.strip("/").split("/")
+        # We assume the structure is standard; usually the last part is the slug
+        current_category_slug = path_parts[-1]
+        
+        # 2. Build the Base SEO Path
+        # Note: We hardcode the prefix based on our requirement
+        base_seo_path = f"technology/mobile-phones/{current_category_slug}"
+        final_seo_path = base_seo_path
+
+        # 3. The Logic: Look for a tile/text containing "phones"
+        # We look inside h2, h3, or span tags within CategoryTiles on THIS page
+        found_match = False
+        
+        # Find all sub-tiles on this brand page
+        sub_tiles = response.xpath('//a[contains(@class, "CategoryTile")]')
+        
+        for tile in sub_tiles:
+            # Get the visible text (e.g., "All iPhones", "iPhone 15", "Chargers")
+            text = tile.xpath('.//text()').get()
+            
+            if text and "phones" in text.lower():
+                # LOGIC FOUND: "All iPhones" or similar
+                clean_text = text.strip()
+                self.logger.info(f"Logic Match Found: '{clean_text}' inside {current_category_slug}")
+                
+                # eg. Turn "All iPhones" -> "all-iphones"
+                sub_slug = clean_text.lower().replace(" ", "-")
+                
+                # Update the filter path
+                final_seo_path = f"{base_seo_path}/{sub_slug}"
+                found_match = True
+                break # We only need one "All" path, usually the first one
+        
+        if not found_match:
+             self.logger.info(f"No 'phones' sub-tile found. Using base: {base_seo_path}")
+
+        # 4. Switch to API Mode, no longer using follow
+        yield self.generate_api_request(final_seo_path, page=0)
+
