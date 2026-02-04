@@ -96,3 +96,60 @@ class OfficeworksSpider(scrapy.Spider):
         # 4. Switch to API Mode, no longer using follow
         yield self.generate_api_request(final_seo_path, page=0)
 
+    """Phase 3: API Mode - We have the final SEO path, now we call the Algolia API directly to get products"""
+    def generate_api_request(self, seo_path, page):
+        url = f"https://{self.ALGOLIA_APP_ID}-dsn.algolia.net/1/indexes/*/queries"
+        
+        params = {
+            # Maximise results per page to reduce total requests; we will paginate through them
+            "hitsPerPage": "100", 
+            "page": str(page),
+            # We inject the dynamic path we calculated
+            "filters": f'categorySeoPaths:"{seo_path}"'
+        }
+        # 2. THE PAYLOAD
+        payload = {
+            "requests": [
+                {
+                    "indexName": self.INDEX_NAME,
+                    "params": urlencode(params)
+                }
+            ]
+        }
+
+        return scrapy.Request(
+            url,
+            method="POST",
+            body=json.dumps(payload),
+            callback=self.parse_api,
+            # Pass metadata so we know which category/page we are on
+            meta={'seo_path': seo_path, 'page': page}
+
+        )
+
+    """Phase 4: Process API Response and paginate if needed"""
+    def parse_api(self, response):
+        # Get API response and extract products
+        data= json.loads(response.body)
+        results = data.get("results", [])[0]
+
+        current_page = response.meta.get('page', 0)
+        seo_path = response.meta.get('seo_path', 'unknown-category')
+
+        nb_pages = results.get('nbPages', 0)
+        hits = results.get('hits', [])
+        for hit in hits:
+            self.logger.info(f"API ({seo_path} | Pg {current_page}): Found {len(hits)} products")
+            # Process each product hit and yield items
+            l = ItemLoader(item=ProductItem())
+            l.add_value('retailer', 'Officeworks')
+            l.add_value('name', hit.get('name'))
+            price = hit.get('price', 0)/100
+            l.add_value('price', str(price))
+            slug = hit.get('urlKeyword')
+            l.add_value('url',f'https://www.officeworks.com.au/shop/officeworks/p/{slug}')
+            yield l.load_item()
+
+        # Recursively fetch next pages
+        if (current_page + 1) < nb_pages:
+            yield self.generate_api_request(seo_path, current_page + 1)
