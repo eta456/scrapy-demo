@@ -4,27 +4,12 @@ from retail_spiders.items import ProductItem
 
 class PLEComputers(scrapy.Spider):
     name = "ple"
+
+    allowed_domains = ["ple.com.au"]
+
     custom_settings = {
-        # 'USER_AGENT': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        
-        # # 2. The Headers (How you behave)
-        # 'DEFAULT_REQUEST_HEADERS': {
-        #     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        #     'Accept-Language': 'en-AU,en;q=0.9',
-        #     'Accept-Encoding': 'gzip, deflate',
-        #     'Referer': 'https://www.google.com/', # Pretend you came from Google
-        #     'Upgrade-Insecure-Requests': '1',
-        #     'Sec-Fetch-Dest': 'document',
-        #     'Sec-Fetch-Mode': 'navigate',
-        #     'Sec-Fetch-Site': 'cross-site',
-        #     'Sec-Fetch-User': '?1',
-        #     'Cache-Control': 'max-age=0',
-        # },
-        
-        # 'DOWNLOAD_DELAY': 2, # Slow down slightly to avoid rate limiters
-        # 'ROBOTSTXT_OBEY': False,
         'FEEDS': {
-            'ple_laptops.jsonl': {
+            'ple.jsonl': {
                 'format': 'jsonlines',
                 'encoding': 'utf8',
                 'overwrite': True, # Replaces file every run
@@ -33,23 +18,52 @@ class PLEComputers(scrapy.Spider):
     }
 
     async def start(self):
+        """
+        Initiates the crawl at the 'All Categories' hub page. This approach ensures 
+        we discover all current categories dynamically rather than hardcoding URLs.
+
+        """
+        url = 'https://www.ple.com.au/CategoryGroups/11/All-Categories'
         yield scrapy.Request(
-            "https://www.ple.com.au/Categories/296/Monitors",
-            callback=self.parse
+            url=url,
+            callback=self.get_all_categories
         )
     
-    def parse(self, response):
+    def get_all_categories(self, response):
+        """
+        Parses the main category hub to extract links to specific product listing pages.
+        """
+        self.logger.info(f"Scanning PLE Categories: {response.url}")
+        # Target the outer wrapper of each category card
+        categories = response.css('div.categoryGroupCategoryItemInner')
+        for category in categories:
+            # Access index [0] to get the FIRST <a> tag inside the wrapper.
+            # This ensures we get the main 'Parent Category' link and ignore any 
+            # smaller 'Sub-Category' links that might exist further down in the HTML.
+            category_url = category.css('a::attr(href)')[0].get()
+            yield scrapy.Request(
+                url=response.urljoin(category_url),
+                callback=self.parse_category
+            )
+    
+    def parse_category(self, response):
+        """
+        Parses a specific category page to extract product details using CSS selectors.
+        """
         self.logger.info(f"Scanning PLE: {response.url}")
 
+        # Locate the specific product tiles in the grid
         products = response.css('div.itemGrid2TileStandard ')
 
         self.logger.info(f"Found {len(products)} products.")
 
         for card in products:
             l = ItemLoader(item=ProductItem(), selector=card)
-            
+            # Name: Inside the description div -> anchor tag
             l.add_css('name', 'div.itemGrid2TileStandardDescription a::text') 
+            # Price: Directly inside the price div
             l.add_css('price', 'div.itemGrid2TileStandardPrice::text')
+            # URL: Extracted from the href of the description link
             l.add_css('url', 'div.itemGrid2TileStandardDescription a::attr(href)')
 
             l.add_value('retailer', 'PLE Computers') # Static value since we know the retailer
@@ -57,6 +71,7 @@ class PLEComputers(scrapy.Spider):
             # Handle URL joining
             item = l.load_item()
             if 'url' in item:
+                # Convert relative path (/products/...) to absolute URL (https://ple.com.au/...)
                 item['url'] = response.urljoin(item['url'])
 
             yield item
