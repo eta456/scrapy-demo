@@ -33,7 +33,7 @@ class OfficeworksSpider(scrapy.Spider):
     INDEX_NAME = "prod-product-wc-bestmatch-personal" 
     
     """Phase 0: Navigate to the main category page (Mobile Phones) to find all brand tiles"""
-    def start_requests(self):
+    async def start(self):
         url = "https://www.officeworks.com.au/shop/officeworks/c/technology/mobile-phones/"
         yield scrapy.Request(url, callback=self.parse_parent_category)
 
