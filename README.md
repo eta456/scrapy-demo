@@ -20,7 +20,7 @@ This project demonstrates web scraping architectures using **Scrapy**, **Python*
 
 ### Installation
 ```bash
-uv pip install scrapy scrapy-impersonate curl_cffi
+uv pip install -r requirements.txt
 ```
 
 ### Running the Spiders
