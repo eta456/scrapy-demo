@@ -22,7 +22,8 @@ class BunningsSpider(scrapy.Spider):
                 'encoding': 'utf8',
                 'overwrite': True, # Replaces file every run
             }
-        }
+        },
+        'LOG_LEVEL': 'INFO',
     }
 
     async def start(self):
@@ -60,7 +61,7 @@ class BunningsSpider(scrapy.Spider):
                     url_path = sub_category['internalPath'][1:] + '?page=1'
                     yield response.follow(url_path, 
                                          callback=self.parse, 
-                                         meta={'impersonate': 'firefox135', 'page': 1})
+                                         meta={'impersonate': 'firefox135', 'page': 1, 'category': sub_category['displayName']})
 
     def parse(self, response):
         """        
@@ -80,29 +81,34 @@ class BunningsSpider(scrapy.Spider):
         total_count = search_data['totalCount']
         items_per_page = int(props['globalData']['globalConfigData']['searchConfig']['global']['numberOfSearchResults'])
         total_pages = math.ceil(total_count / items_per_page)
-        self.logger.info(f"Page {response.meta['page']}/{total_pages} - {total_count} total products")
+        self.logger.info(f"{response.meta['category']} Page {response.meta['page']}/{total_pages} - {total_count} total products")
 
         # Navigate through the JSON structure to find product data
         product_data = props['searchResults']['data']['results']
         for product in product_data:
-            yield self.parse_product(product, response)
-
-        # Handle pagination
-        next_page = response.meta.get('page', 1) + 1
-        if next_page <= total_pages:
-            # Construct the next page URL manually to ensure reliability
-            # url.split('?')[0] strips old params to prevent duplicates (e.g. ?page=1?page=2)
-            url = response.url.split('?')[0] + f'?page={next_page}'
-            yield response.follow(url, 
-                                 callback=self.parse, 
-                                 meta={'impersonate': 'firefox135', 'page': next_page})
+            yield self.parse_product(product['raw'], response)
+        
+        current_page = response.meta.get('page', 1)
+        # If this is Page 1, generate requests for ALL other pages at once to speed up the crawl
+        if current_page == 1:
+            self.logger.info(f"Exploding pagination: Generating requests for {total_pages-1} pages.")
+            
+            for page in range(2, total_pages + 1):
+                # Reconstruct URL for specific page
+                base_url = response.url.split('?')[0]
+                next_url = f"{base_url}?page={p}"
+                
+                yield scrapy.Request(next_url, 
+                                     callback=self.parse, 
+                                     meta={'impersonate': 'firefox135', 'page': page}
+                                     )
     
     def parse_product(self, product, response):
         """
         Helper method to map raw JSON product data to the Scrapy Item.
         """
         l = ItemLoader(item=ProductItem())
-        l.add_value('name', product.get('name', ''))
+        l.add_value('name', product.get('title', ''))
         l.add_value('price', '$' + str(product.get('price', 0)))
         l.add_value('url', response.urljoin(product.get('productroutingurl', '')))
         l.add_value('retailer', 'Bunnings')
