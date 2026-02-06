@@ -26,41 +26,81 @@ class BunningsSpider(scrapy.Spider):
     }
 
     async def start(self):
-        url = "https://www.bunnings.com.au/products/garden/garden-power-tools?page=1"
+        """        
+        Initiates the crawl at a high-level category page (Garden).
+        We use `impersonate` (Firefox 135) to mimic a real browser TLS fingerprint.
+        """
+        url = 'https://www.bunnings.com.au/products/garden'
         yield scrapy.Request(url, 
-                             callback=self.parse, 
+                             callback=self.get_sub_categories, 
                              meta={'impersonate': 'firefox135', 'page': 1})
     
+    def get_sub_categories(self, response):
+        """   
+        Extracts the site's navigation tree from the Next.js global state.
+        This allows us to find all 'Garden' sub-categories dynamically without 
+        hardcoding URLs.
+        """
+        # Extract the hydration state (Raw JSON)
+        next_data = response.xpath('//script[@id="__NEXT_DATA__"]/text()').get()
+        if not next_data:
+            return self.logger.error("No __NEXT_DATA__ script tag found on the page")
+        
+        data = json.loads(next_data)
+        root_categories = data['props']['pageProps']['initialState']['global']['globalData']['navigation']
+        for category in root_categories['levels']:
+            if category.get('workShopCategory', '') == 'Garden':
+                sub_categories = category['levels']
+                self.logger.info(f'Found {len(sub_categories)} categories under {category["workShopCategory"]}')
+                for sub_category in sub_categories:
+                    self.logger.info(f"Found {sub_category['displayName']} sub-category with code: {sub_category['code']}")
+                    # Construct the URL for the sub-category
+                    # [1:] removes the leading '/' if internalPath is absolute (e.g. /products/...)
+                    # We append ?page=1 to start the pagination sequence cleanly.
+                    url_path = sub_category['internalPath'][1:] + '?page=1'
+                    yield response.follow(url_path, 
+                                         callback=self.parse, 
+                                         meta={'impersonate': 'firefox135', 'page': 1})
+
     def parse(self, response):
+        """        
+        This method handles both extracting products from the current page's JSON
+        and calculating if further pages need to be crawled.
+        """
         next_data = response.xpath('//script[@id="__NEXT_DATA__"]/text()').get()
         if not next_data:
             return self.logger.error("No __NEXT_DATA__ script tag found on the page")
 
         data = json.loads(next_data)
+        # Locate the search results within the state
         props = data['props']['pageProps']['initialState']['global']
         search_data = props['searchResults']['data']
         
-        # Get pagination info
+        # Get total and products and pagination info
         total_count = search_data['totalCount']
         items_per_page = int(props['globalData']['globalConfigData']['searchConfig']['global']['numberOfSearchResults'])
         total_pages = math.ceil(total_count / items_per_page)
-        
         self.logger.info(f"Page {response.meta['page']}/{total_pages} - {total_count} total products")
 
         # Navigate through the JSON structure to find product data
-        product_data = props['results']
+        product_data = props['searchResults']['data']['results']
         for product in product_data:
             yield self.parse_product(product, response)
 
         # Handle pagination
         next_page = response.meta.get('page', 1) + 1
         if next_page <= total_pages:
-            url = f"https://www.bunnings.com.au/products/garden/garden-power-tools?page={next_page}"
-            yield scrapy.Request(url, 
+            # Construct the next page URL manually to ensure reliability
+            # url.split('?')[0] strips old params to prevent duplicates (e.g. ?page=1?page=2)
+            url = response.url.split('?')[0] + f'?page={next_page}'
+            yield response.follow(url, 
                                  callback=self.parse, 
                                  meta={'impersonate': 'firefox135', 'page': next_page})
     
     def parse_product(self, product, response):
+        """
+        Helper method to map raw JSON product data to the Scrapy Item.
+        """
         l = ItemLoader(item=ProductItem())
         l.add_value('name', product.get('name', ''))
         l.add_value('price', '$' + str(product.get('price', 0)))
