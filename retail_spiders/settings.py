@@ -1,99 +1,32 @@
-# Scrapy settings for retail_spiders project
-#
-# For simplicity, this file contains only settings considered important or
-# commonly used. You can find more settings consulting the documentation:
-#
-#     https://docs.scrapy.org/en/latest/topics/settings.html
-#     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+# GLOBAL SETTINGS
+BOT_NAME = 'retail_spiders'
+SPIDER_MODULES = ['retail_spiders.spiders']
+NEWSPIDER_MODULE = 'retail_spiders.spiders'
 
-BOT_NAME = "retail_spiders"
-
-SPIDER_MODULES = ["retail_spiders.spiders"]
-NEWSPIDER_MODULE = "retail_spiders.spiders"
-
-ADDONS = {}
-
-
-# Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = "retail_spiders (+http://www.yourdomain.com)"
-
-# Obey robots.txt rules
-ROBOTSTXT_OBEY = True
-
-# Concurrency and throttling settings
-#CONCURRENT_REQUESTS = 16
-CONCURRENT_REQUESTS_PER_DOMAIN = 1
+# 1. Concurrency & Performance (The "Turbo" Settings)
+# These settings are aggressive and may need to be dialed back for more polite crawling or to avoid IP bans.
+# CONCURRENT_REQUESTS = 32
+# CONCURRENT_REQUESTS_PER_DOMAIN = 16
 DOWNLOAD_DELAY = 1
+COOKIES_ENABLED = False
+LOG_LEVEL = 'INFO'
 
-# Disable cookies (enabled by default)
-#COOKIES_ENABLED = False
+# 2. Async Reactor (Required for Impersonate/Curl_Cffi)
+TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
 
-# Disable Telnet Console (enabled by default)
-#TELNETCONSOLE_ENABLED = False
+# 3. Download Handlers (Register Impersonate globally)
+DOWNLOAD_HANDLERS = {
+    "http": "scrapy_impersonate.ImpersonateDownloadHandler",
+    "https": "scrapy_impersonate.ImpersonateDownloadHandler",
+}
 
-# Override the default request headers:
-#DEFAULT_REQUEST_HEADERS = {
-#    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-#    "Accept-Language": "en",
-#}
-
-# Enable or disable spider middlewares
-# See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-#SPIDER_MIDDLEWARES = {
-#    "retail_spiders.middlewares.RetailSpidersSpiderMiddleware": 543,
-#}
-
-# Enable or disable downloader middlewares
-# See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    "retail_spiders.middlewares.RetailSpidersDownloaderMiddleware": 543,
-#}
-
-# Enable or disable extensions
-# See https://docs.scrapy.org/en/latest/topics/extensions.html
-#EXTENSIONS = {
-#    "scrapy.extensions.telnet.TelnetConsole": None,
-#}
-
-# Configure item pipelines
-# See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    "retail_spiders.pipelines.RetailSpidersPipeline": 300,
-#}
-
-# Enable and configure the AutoThrottle extension (disabled by default)
-# See https://docs.scrapy.org/en/latest/topics/autothrottle.html
-#AUTOTHROTTLE_ENABLED = True
-# The initial download delay
-#AUTOTHROTTLE_START_DELAY = 5
-# The maximum download delay to be set in case of high latencies
-#AUTOTHROTTLE_MAX_DELAY = 60
-# The average number of requests Scrapy should be sending in parallel to
-# each remote server
-#AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
-# Enable showing throttling stats for every response received:
-#AUTOTHROTTLE_DEBUG = False
-
-# Enable and configure HTTP caching (disabled by default)
-# See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings
-#HTTPCACHE_ENABLED = True
-#HTTPCACHE_EXPIRATION_SECS = 0
-#HTTPCACHE_DIR = "httpcache"
-#HTTPCACHE_IGNORE_HTTP_CODES = []
-#HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
-
-# Set settings whose default value is deprecated to a future-proof value
-FEED_EXPORT_ENCODING = "utf-8"
-
-# # ENABLE PLAYWRIGHT
-# DOWNLOAD_HANDLERS = {
-#     "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-#     "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-# }
-
-# # Run naturally (Headless = True means you won't see the browser pop up)
-# PLAYWRIGHT_LAUNCH_OPTIONS = {
-#     "headless": True,
-#     "timeout": 20 * 1000,  # 20 seconds
-# }
+# 4. Global Feed Export (Dynamic naming based on spider name)
+# This saves you from defining FEEDS in every spider.
+# It saves to: data/bunnings.jsonl, data/officeworks.jsonl, etc.
+FEEDS = {
+    'data/%(name)s.jsonl': {
+        'format': 'jsonlines',
+        'encoding': 'utf8', 
+        'overwrite': True
+    }
+}

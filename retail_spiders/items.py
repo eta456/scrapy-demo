@@ -15,7 +15,7 @@ def remove_currency_symbol(value):
 class ProductItem(scrapy.Item):
     # define the fields for your item here like:
     # name = scrapy.Field()
-# 1. The Retailer Name (e.g., 'Officeworks') - needed for analysis later
+    # 1. The Retailer Name (e.g., 'Officeworks') - needed for analysis later
     retailer = scrapy.Field(output_processor=TakeFirst())
     
     # 2. The Product Name (Cleaned)

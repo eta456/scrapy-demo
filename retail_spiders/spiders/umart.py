@@ -10,13 +10,6 @@ class UmartSpider(scrapy.Spider):
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'ROBOTSTXT_OBEY': False,
         'DOWNLOAD_DELAY': 1.5,
-        'FEEDS': {
-            'umart_pc_parts.jsonl': {
-                'format': 'jsonlines',
-                'encoding': 'utf8',
-                'overwrite': True, # Replaces file every run
-            }
-        }
     }
 
     async def start(self):

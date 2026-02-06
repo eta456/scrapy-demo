@@ -9,32 +9,27 @@ class BunningsSpider(scrapy.Spider):
     allowed_domains = ["bunnings.com.au"] 
     
     custom_settings = {
-        'User-Agent': None,
-        'TWISTED_REACTOR': 'twisted.internet.asyncioreactor.AsyncioSelectorReactor',
-
-        'DOWNLOAD_HANDLERS': {
-            "http": "scrapy_impersonate.ImpersonateDownloadHandler",
-            "https": "scrapy_impersonate.ImpersonateDownloadHandler",
-        },
-        'FEEDS': {
-            'bunnings.jsonl': {
-                'format': 'jsonlines',
-                'encoding': 'utf8',
-                'overwrite': True, # Replaces file every run
-            }
-        },
-        'LOG_LEVEL': 'INFO',
+        'ROBOTSTXT_OBEY': False,
+        'IMPERSONATE': 'firefox135',  # Use the latest Firefox profile for impersonation
     }
 
     async def start(self):
         """        
         Initiates the crawl at a high-level category page (Garden).
-        We use `impersonate` (Firefox 135) to mimic a real browser TLS fingerprint.
         """
         url = 'https://www.bunnings.com.au/products/garden'
         yield scrapy.Request(url, 
                              callback=self.get_sub_categories, 
-                             meta={'impersonate': 'firefox135', 'page': 1})
+                             meta={'impersonate': self.custom_settings['IMPERSONATE'], 'page': 1})
+    
+    def get_next_data(self, response):
+        """Helper to safely extract the __NEXT_DATA__ blob."""
+        # Extract the hydration state (Raw JSON)
+        raw_json = response.xpath('//script[@id="__NEXT_DATA__"]/text()').get()
+        if not raw_json:
+            self.logger.error(f"Missing __NEXT_DATA__ on {response.url}")
+            return None
+        return json.loads(raw_json)
     
     def get_sub_categories(self, response):
         """   
@@ -42,66 +37,66 @@ class BunningsSpider(scrapy.Spider):
         This allows us to find all 'Garden' sub-categories dynamically without 
         hardcoding URLs.
         """
-        # Extract the hydration state (Raw JSON)
-        next_data = response.xpath('//script[@id="__NEXT_DATA__"]/text()').get()
-        if not next_data:
-            return self.logger.error("No __NEXT_DATA__ script tag found on the page")
-        
-        data = json.loads(next_data)
-        root_categories = data['props']['pageProps']['initialState']['global']['globalData']['navigation']
-        for category in root_categories['levels']:
+        data = self.get_next_data(response)
+        # Navigate JSON Path
+        try:
+            root_categories_levels = data['props']['pageProps']['initialState']['global']['globalData']['navigation']['levels']
+        except KeyError:
+            self.logger.error(f"Failed to extract navigation levels from __NEXT_DATA__ on {response.url}")
+            return
+        for category in root_categories_levels:
             if category.get('workShopCategory', '') == 'Garden':
                 sub_categories = category['levels']
                 self.logger.info(f'Found {len(sub_categories)} categories under {category["workShopCategory"]}')
+
                 for sub_category in sub_categories:
                     self.logger.info(f"Found {sub_category['displayName']} sub-category with code: {sub_category['code']}")
-                    # Construct the URL for the sub-category
-                    # [1:] removes the leading '/' if internalPath is absolute (e.g. /products/...)
-                    # We append ?page=1 to start the pagination sequence cleanly.
-                    url_path = sub_category['internalPath'][1:] + '?page=1'
+                    # Clean URL: Remove leading slash + append page param.
+                    url_path = sub_category['internalPath'].lstrip('/') + '?page=1'
                     yield response.follow(url_path, 
                                          callback=self.parse, 
-                                         meta={'impersonate': 'firefox135', 'page': 1, 'category': sub_category['displayName']})
+                                         meta={'impersonate': self.custom_settings['IMPERSONATE'], 'page': 1, 'category': sub_category['displayName']})
 
     def parse(self, response):
         """        
         This method handles both extracting products from the current page's JSON
         and calculating if further pages need to be crawled.
         """
-        next_data = response.xpath('//script[@id="__NEXT_DATA__"]/text()').get()
-        if not next_data:
-            return self.logger.error("No __NEXT_DATA__ script tag found on the page")
-
-        data = json.loads(next_data)
-        # Locate the search results within the state
-        props = data['props']['pageProps']['initialState']['global']
-        search_data = props['searchResults']['data']
+        data = self.get_next_data(response)
+        if not data: return
+        try:
+            # Locate search results
+            props = data['props']['pageProps']['initialState']['global']
+            search_data = props['searchResults']['data']
+            product_data = search_data['results']
+            
+            # Pagination Logic
+            total_count = search_data['totalCount']
+            items_per_page = int(props['globalData']['globalConfigData']['searchConfig']['global']['numberOfSearchResults'])
+            total_pages = math.ceil(total_count / items_per_page)
+        except KeyError:
+             return self.logger.error("JSON structure changed for Search Results")
         
-        # Get total and products and pagination info
-        total_count = search_data['totalCount']
-        items_per_page = int(props['globalData']['globalConfigData']['searchConfig']['global']['numberOfSearchResults'])
-        total_pages = math.ceil(total_count / items_per_page)
-        self.logger.info(f"{response.meta['category']} Page {response.meta['page']}/{total_pages} - {total_count} total products")
+        self.logger.info(f"{response.meta.get('category')} - Page {response.meta['page']}/{total_pages} - {total_count} items")
 
-        # Navigate through the JSON structure to find product data
-        product_data = props['searchResults']['data']['results']
         for product in product_data:
             yield self.parse_product(product['raw'], response)
         
         current_page = response.meta.get('page', 1)
-        # If this is Page 1, generate requests for ALL other pages at once to speed up the crawl
+        # If we are on Page 1, we calculate ALL future pages and fire requests immediately
         if current_page == 1:
             self.logger.info(f"Exploding pagination: Generating requests for {total_pages-1} pages.")
-            
+
+            base_url = response.url.split('?')[0]
             for page in range(2, total_pages + 1):
                 # Reconstruct URL for specific page
-                base_url = response.url.split('?')[0]
                 next_url = f"{base_url}?page={p}"
                 
                 yield scrapy.Request(next_url, 
                                      callback=self.parse, 
-                                     meta={'impersonate': 'firefox135', 'page': page}
+                                     meta={'impersonate': self.custom_settings['IMPERSONATE'], 'page': page, 'category': response.meta.get('category')}
                                      )
+                                     
     
     def parse_product(self, product, response):
         """

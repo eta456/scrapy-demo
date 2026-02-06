@@ -4,18 +4,7 @@ from retail_spiders.items import ProductItem
 
 class PLEComputers(scrapy.Spider):
     name = "ple"
-
     allowed_domains = ["ple.com.au"]
-
-    custom_settings = {
-        'FEEDS': {
-            'ple.jsonl': {
-                'format': 'jsonlines',
-                'encoding': 'utf8',
-                'overwrite': True, # Replaces file every run
-            }
-        }
-    }
 
     async def start(self):
         """
