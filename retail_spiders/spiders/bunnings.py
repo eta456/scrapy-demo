@@ -90,7 +90,7 @@ class BunningsSpider(scrapy.Spider):
             base_url = response.url.split('?')[0]
             for page in range(2, total_pages + 1):
                 # Reconstruct URL for specific page
-                next_url = f"{base_url}?page={p}"
+                next_url = f"{base_url}?page={page}"
                 
                 yield scrapy.Request(next_url, 
                                      callback=self.parse, 
