@@ -8,7 +8,7 @@ This project demonstrates web scraping architectures using **Scrapy**, **Python*
 | :--- | :--- | :--- | :--- |
 | **Bunnings** | **Next.js Hydration** | `__NEXT_DATA__` JSON Extraction | Bypassing CSR & Speed (Pagination Explosion) |
 | **Officeworks** | **API Engineering** | API Interception | Obtaining structured data without HTML parsing |
-| **Umart** | **Semantic HTML** | XPath & Semantic Tags | Handling deep navigation hierarchies |
+| **Umart, SCA** | **Semantic HTML** | XPath & Semantic Tags | Handling deep navigation hierarchies |
 | **PLE** | **CSS Selectors** | CSS Selectors | High-speed traversal of legacy HTML structures |
 ---
 

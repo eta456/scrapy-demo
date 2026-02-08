@@ -15,9 +15,7 @@ class ScaSpider(scrapy.Spider):
 
     async def start(self):
         """
-        We target the main 'Computer Parts' hub page rather than individual categories.
-        This allows the spider to dynamically discover all available sub-categories
-
+        We target the 4wd Recovery category page directly to find all products. 
         :param self: Description
         """
         # We start at the main PC Parts hub to find all sub-categories.
