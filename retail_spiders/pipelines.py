@@ -1,13 +1,15 @@
-# Define your item pipelines here
-#
-# Don't forget to add your pipeline to the ITEM_PIPELINES setting
-# See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
+from scrapy.exceptions import DropItem
 
-
-# useful for handling different item types with a single interface
-from itemadapter import ItemAdapter
-
-
-class RetailSpidersPipeline:
+class QualityAssurancePipeline:
     def process_item(self, item, spider):
+        # Critical Field Check
+        if not item.get('price'):
+            spider.crawler.stats.inc_value('data_quality/missing_price')
+            raise DropItem(f"❌ DATA QUALITY: Item {item.get('name')} missing price.")
+
+        # Logic Check (Price must be positive)
+        if item['price'] <= 0:
+            spider.crawler.stats.inc_value('data_quality/invalid_price')
+            raise DropItem(f"❌ DATA QUALITY: Item {item.get('name')} has zero/negative price.")
+
         return item

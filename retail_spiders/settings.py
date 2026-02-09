@@ -15,14 +15,18 @@ SPIDER_MIDDLEWARES = {
 }
 
 EXTENSIONS = {
-    'myproject.extensions.CircuitBreakerExtension': 500,
+    'retail_spiders.extensions.CircuitBreakerExtension': 500,
 }
 # Stop if >35% requests fail
 CIRCUIT_BREAKER_THRESHOLD = 0.35  
 
+ITEM_PIPELINES = {
+   'retail_spiders.pipelines.QualityAssurancePipeline': 200,
+}
+
 JOBDIR = "crawls/%(name)s"
 
-# 1. Concurrency & Performance
+# Concurrency & Performance
 # These settings are aggressive and may need to be dialed back for more polite crawling or to avoid IP bans.
 CONCURRENT_REQUESTS = 10
 CONCURRENT_REQUESTS_PER_DOMAIN = 16
@@ -30,16 +34,16 @@ DOWNLOAD_DELAY = 1
 COOKIES_ENABLED = False
 LOG_LEVEL = 'INFO'
 
-# 2. Async Reactor (Required for Impersonate/Curl_Cffi)
+# Async Reactor (Required for Impersonate/Curl_Cffi)
 TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
 
-# 3. Download Handlers (Register Impersonate globally)
+# Download Handlers (Register Impersonate globally)
 DOWNLOAD_HANDLERS = {
     "http": "scrapy_impersonate.ImpersonateDownloadHandler",
     "https": "scrapy_impersonate.ImpersonateDownloadHandler",
 }
 
-# 4. Global Feed Export (Dynamic naming based on spider name)
+# Global Feed Export (Dynamic naming based on spider name)
 # This saves you from defining FEEDS in every spider.
 # It saves to: data/bunnings.jsonl, data/officeworks.jsonl, etc.
 FEEDS = {
