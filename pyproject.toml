@@ -5,7 +5,9 @@ description = "Scrapy demo"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "dotenv>=0.9.9",
     "extruct>=0.18.0",
+    "pymongo>=4.16.0",
     "scrapy>=2.14.1",
     "scrapy-impersonate>=1.6.2",
     "scrapy-playwright>=0.0.46",
