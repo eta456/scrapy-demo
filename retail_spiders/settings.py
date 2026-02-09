@@ -34,6 +34,11 @@ DOWNLOAD_DELAY = 1
 COOKIES_ENABLED = False
 LOG_LEVEL = 'INFO'
 
+# Timeout for individual request
+DOWNLOAD_TIMEOUT = 30
+CLOSERSPIDER_TIMEOUT = 3600 * 4  # 4 hours max per crawl
+
+
 # Async Reactor (Required for Impersonate/Curl_Cffi)
 TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
 
