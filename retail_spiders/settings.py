@@ -14,6 +14,12 @@ SPIDER_MIDDLEWARES = {
    'retail_spiders.middlewares.RetailSpidersSpiderMiddleware': 500,
 }
 
+EXTENSIONS = {
+    'myproject.extensions.CircuitBreakerExtension': 500,
+}
+# Stop if >35% requests fail
+CIRCUIT_BREAKER_THRESHOLD = 0.35  
+
 JOBDIR = "crawls/%(name)s"
 
 # 1. Concurrency & Performance
