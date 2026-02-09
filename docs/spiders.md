@@ -68,6 +68,6 @@ These sites present "dirty" HTML structures.
 * **Umart:** Legacy tables where data is not labelled with classes, but by position or text labels.
 
 ### ✅ The Solution: XPath
-We utilize XPath for its ability to traverse the DOM relative to specific text anchors ("Anchor and Pivot").
+We utilize XPath for its ability to traverse the DOM.
 
 
