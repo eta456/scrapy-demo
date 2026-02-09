@@ -3,10 +3,23 @@ BOT_NAME = 'retail_spiders'
 SPIDER_MODULES = ['retail_spiders.spiders']
 NEWSPIDER_MODULE = 'retail_spiders.spiders'
 
-# 1. Concurrency & Performance (The "Turbo" Settings)
+DOWNLOADER_MIDDLEWARES = {
+    # Disable default RetryMiddleware if you want to fully replace it, 
+    # OR just put yours at a higher priority (lower number)
+    'scrapy.downloadermiddlewares.retry.RetryMiddleware': None, 
+    'retail_spiders.middlewares.SoftBanMiddleware': 550,
+}
+
+SPIDER_MIDDLEWARES = {
+   'retail_spiders.middlewares.RetailSpidersSpiderMiddleware': 500,
+}
+
+JOBDIR = "crawls/%(name)s"
+
+# 1. Concurrency & Performance
 # These settings are aggressive and may need to be dialed back for more polite crawling or to avoid IP bans.
-# CONCURRENT_REQUESTS = 32
-# CONCURRENT_REQUESTS_PER_DOMAIN = 16
+CONCURRENT_REQUESTS = 10
+CONCURRENT_REQUESTS_PER_DOMAIN = 16
 DOWNLOAD_DELAY = 1
 COOKIES_ENABLED = False
 LOG_LEVEL = 'INFO'
