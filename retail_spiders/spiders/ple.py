@@ -6,6 +6,13 @@ class PLEComputers(scrapy.Spider):
     name = "ple"
     allowed_domains = ["ple.com.au"]
 
+    custom_settings = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'ROBOTSTXT_OBEY': False,
+        'DOWNLOAD_DELAY': 1.5,
+        'IMPERSONATE': 'firefox135',  # Use the latest Firefox profile for impersonation
+    }
+
     async def start(self):
         """
         Initiates the crawl at the 'All Categories' hub page. This approach ensures 
@@ -15,7 +22,8 @@ class PLEComputers(scrapy.Spider):
         url = 'https://www.ple.com.au/CategoryGroups/11/All-Categories'
         yield scrapy.Request(
             url=url,
-            callback=self.get_all_categories
+            callback=self.get_all_categories,
+            meta={'impersonate': self.custom_settings['IMPERSONATE']}
         )
     
     def get_all_categories(self, response):
@@ -32,7 +40,8 @@ class PLEComputers(scrapy.Spider):
             category_url = category.css('a::attr(href)')[0].get()
             yield scrapy.Request(
                 url=response.urljoin(category_url),
-                callback=self.parse_category
+                callback=self.parse_category,
+                meta={'impersonate': self.custom_settings['IMPERSONATE']}
             )
     
     def parse_category(self, response):
