@@ -2,7 +2,7 @@
 
 This project demonstrates web scraping architectures using **Scrapy**, **Python**, and **Reverse Engineering**. It targets four major Australian electronics retailers, each requiring a different technical approach to overcome specific challenges (Client-Side Rendering, Anti-Bots, and Hidden APIs).
 
-## 🕷️ Spider Architectures
+## Spider Architecture
 
 | Retailer | Architecture | Key Technique | Challenge Solved |
 | :--- | :--- | :--- | :--- |
@@ -12,7 +12,7 @@ This project demonstrates web scraping architectures using **Scrapy**, **Python*
 | **PLE** | **CSS Selectors** | CSS Selectors | High-speed traversal of legacy HTML structures |
 ---
 
-## 🚀 Setup & Usage
+## Setup & Usage
 
 ### Prerequisites
 * Python 3.10+
@@ -33,11 +33,11 @@ uv run scrapy crawl ple
 ```
 ---
 
-## 📚 Documentation
+## Documentation
 I have documented the system design and reverse-engineering process in detail:
-* **[🕷️ Spider Strategy (docs/spiders.md)](docs/spiders.md)**
+* **[Spider Strategy (docs/spiders.md)](docs/spiders.md)**
     * *Deep Dive:* Handling the **Next.js 13+ App Router shift** and **React Server Components**.
     * *Deep Dive:* Reverse-engineering **Algolia** signed payloads.
-* **[⚙️ System Architecture (docs/architecture.md)](docs/architecture.md)**
+* **[System Architecture (docs/architecture.md)](docs/architecture.md)**
     * Operational governance and scrapy configuration
     * Future Considerations: Designing a **Hybrid Solver Middleware** for CAPTCHAs.
